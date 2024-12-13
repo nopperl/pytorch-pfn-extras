@@ -104,6 +104,9 @@ def _export_util(
 
     Copied from torch.onnx.utils.export, to get output values.
     """
+    enable_onnx_checker = kwargs.pop('enable_onnx_checker', None)
+    if enable_onnx_checker:
+        raise ArgumentError("onnx checker is not supported anymore.")
     aten = kwargs.get('aten', False)
     export_raw_ir = kwargs.get('export_raw_ir', False)
     operator_export_type = kwargs.get('operator_export_type', None)
@@ -127,25 +130,12 @@ def _export_util(
     # This is a temporal workaround until a fix is introduced in PyTorch.
     try:
         torch.onnx.utils._model_to_graph = _model_to_graph_with_value_names
-        checker_error = getattr(torch.onnx, "CheckerError", None)
-        if checker_error is None:
-            checker_error = getattr(torch.onnx.utils, "ONNXCheckerError", None)  # type: ignore[attr-defined]
-        try:
-            enable_onnx_checker = kwargs.pop('enable_onnx_checker', None)
-            if pytorch_pfn_extras.requires("2.5.0") and enable_onnx_checker:
-                warnings.warn("onnx checker not supported from 2.5", UserWarning)
-            if custom_exporter is None:
-                return torch_export(  # type: ignore[no-untyped-call]
-                    model, args, f, **kwargs)
-            else:
-                return custom_exporter(  # type: ignore[no-untyped-call]
-                    model, args, f, **kwargs)
-        except checker_error:  # type: ignore[misc]
-            if enable_onnx_checker:
-                raise
-            if return_output:
-                # Re-run the model to obtain the output.
-                return model(*args)
+        if custom_exporter is None:
+            return torch_export(  # type: ignore[no-untyped-call]
+                model, args, f, **kwargs)
+        else:
+            return custom_exporter(  # type: ignore[no-untyped-call]
+                model, args, f, **kwargs)
     finally:
         torch.onnx.utils._model_to_graph = old_model_to_graph
 
